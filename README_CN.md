@@ -7,7 +7,7 @@
 ## 示例简介
 
 - 将手机 Classic A2DP Sink 音频桥接到一路 LE Audio Broadcast Source。默认 1 个 BIG、2 条 BIS（前左/前右）；menuconfig 可选 16 kHz 或 48 kHz 单声道（1 个 BIG、1 条 BIS）。
-- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（`aud_ch_cvt` → `aud_rate_cvt` → `aud_enc` → `io_bt`）。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
+- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（PCM 转换 → `aud_enc` → `io_bt`）。PCM 转换由 menuconfig 选择：软件 `aud_ch_cvt` + `aud_rate_cvt`，或硬件 `aud_asrc`。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
 
 ### 典型场景
 
@@ -75,7 +75,7 @@ idf.py -p PORT flash monitor
 
 menuconfig 关注项：
 
-- `A2DP to Dual BIS Example`：设备/广播名、广播码、LC3 preset（16/48 kHz 立体声或单声道）
+- `A2DP to Dual BIS Example`：设备/广播名、广播码、PCM 转换路径（软件 `aud_ch_cvt` + `aud_rate_cvt`，或硬件 `aud_asrc`）、LC3 preset（16/48 kHz 立体声或单声道）
 - Bluetooth → LE Audio：`CONFIG_BT_BAP_BROADCAST_SRC_STREAM_COUNT=2`（协议栈上限；实际 BIS 数量跟随 LC3 preset）
 - 保持 Bluedroid BTDM（Classic + LE）开启
 

@@ -7,7 +7,7 @@
 ## Example Brief
 
 - Relays Classic A2DP Sink PCM from a phone into one LE Audio Broadcast Source BIG. Default is two BIS streams (front left / front right). menuconfig can select 16 kHz or 48 kHz mono with a single BIS.
-- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (`aud_ch_cvt` → `aud_rate_cvt` → `aud_enc` → `io_bt`). Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
+- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (PCM convert → `aud_enc` → `io_bt`). PCM conversion is selected in menuconfig: software `aud_ch_cvt` + `aud_rate_cvt`, or hardware `aud_asrc`. Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
 
 ### Typical Scenarios
 
@@ -75,7 +75,7 @@ idf.py -p PORT flash monitor
 
 menuconfig highlights:
 
-- `A2DP to Dual BIS Example` → device / broadcast name, broadcast code, LC3 preset (16/48 kHz stereo or mono)
+- `A2DP to Dual BIS Example` → device / broadcast name, broadcast code, PCM conversion path (software `aud_ch_cvt` + `aud_rate_cvt`, or hardware `aud_asrc`), LC3 preset (16/48 kHz stereo or mono)
 - Bluetooth → LE Audio → `CONFIG_BT_BAP_BROADCAST_SRC_STREAM_COUNT=2` (stack maximum; actual BIS count follows the LC3 preset)
 - Keep Bluedroid BTDM enabled (Classic + LE)
 

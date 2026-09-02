@@ -8,6 +8,20 @@ menu "A2DP to Dual BIS Example"
         string "Broadcast code (empty for open broadcast)"
         default ""
 
+    choice A2DP_BIS_PCM_CVT
+        prompt "PCM conversion path"
+        default A2DP_BIS_PCM_CVT_SW
+        help
+            Convert decoded A2DP PCM to the LC3 channel count and sample rate.
+            Hardware ASRC is available on chips that expose SOC_ASRC.
+
+        config A2DP_BIS_PCM_CVT_SW
+            bool "Software channel converter + rate converter"
+        config A2DP_BIS_PCM_CVT_ASRC
+            bool "Hardware ASRC"
+            depends on SOC_ASRC_SUPPORTED
+    endchoice
+
     choice A2DP_BIS_LC3_PRESET
         prompt "LC3 broadcast preset"
         default A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ
