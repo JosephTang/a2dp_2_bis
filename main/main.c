@@ -44,6 +44,13 @@ static void bt_audio_event_cb(esp_bt_audio_event_t event, void *event_data, void
         case ESP_BT_AUDIO_EVENT_CONNECTION_STATE_CHG: {
             esp_bt_audio_event_connection_st_t *st = event_data;
             ESP_LOGI(TAG, "Connection tech=%d connected=%d", (int)st->tech, st->connected);
+            if (st->tech == ESP_BT_AUDIO_TECH_CLASSIC) {
+                if (st->connected) {
+                    esp_bt_audio_classic_set_scan_mode(false, false);
+                } else {
+                    esp_bt_audio_classic_set_scan_mode(true, true);
+                }
+            }
             break;
         }
         case ESP_BT_AUDIO_EVENT_STREAM_STATE_CHG: {
