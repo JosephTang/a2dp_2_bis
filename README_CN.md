@@ -7,7 +7,7 @@
 ## 示例简介
 
 - 将手机 Classic A2DP Sink 音频桥接到一路 LE Audio Broadcast Source。默认 1 个 BIG、2 条 BIS（前左/前右）；menuconfig 可选 16 kHz 或 48 kHz 单声道（1 个 BIG、1 条 BIS）。
-- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（`aud_asrc` → `aud_enc` → `io_bt`）。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
+- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（`aud_ch_cvt` → `aud_rate_cvt` → `aud_enc` → `io_bt`）。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
 
 ### 典型场景
 

@@ -7,7 +7,7 @@
 ## Example Brief
 
 - Relays Classic A2DP Sink PCM from a phone into one LE Audio Broadcast Source BIG. Default is two BIS streams (front left / front right). menuconfig can select 16 kHz or 48 kHz mono with a single BIS.
-- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (`aud_asrc` → `aud_enc` → `io_bt`). Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
+- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (`aud_ch_cvt` → `aud_rate_cvt` → `aud_enc` → `io_bt`). Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
 
 ### Typical Scenarios
 

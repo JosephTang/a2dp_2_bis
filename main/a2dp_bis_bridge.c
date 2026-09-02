@@ -13,9 +13,9 @@
 #include "esp_check.h"
 #include "esp_log.h"
 
-#include "esp_gmf_asrc.h"
 #include "esp_gmf_audio_dec.h"
 #include "esp_gmf_audio_enc.h"
+#include "esp_gmf_ch_cvt.h"
 #include "esp_gmf_new_databus.h"
 #include "esp_gmf_element.h"
 #include "esp_gmf_io_bt.h"
@@ -23,6 +23,7 @@
 #include "esp_gmf_pipeline.h"
 #include "esp_gmf_pool.h"
 #include "esp_gmf_port.h"
+#include "esp_gmf_rate_cvt.h"
 #include "esp_gmf_task.h"
 
 #include "esp_bt_audio_le.h"
@@ -33,12 +34,12 @@
 
 static const char *TAG = "A2DP_BIS_BRIDGE";
 
-#define BIS_NUM          A2DP_BIS_BRIDGE_STREAM_COUNT
-#define ASRC_WEIGHT_LEN  2
-#define RB_BLOCKS        1
-#define RB_BLOCK_SIZE    1024 * 1024
-#define PORT_PAYLOAD     4096
-#define WORKER_Q_LEN     16
+#define BIS_NUM             A2DP_BIS_BRIDGE_STREAM_COUNT
+#define CH_CVT_WEIGHT_LEN   2
+#define RB_BLOCKS           1
+#define RB_BLOCK_SIZE       1024 * 1024
+#define PORT_PAYLOAD        4096
+#define WORKER_Q_LEN        16
 
 typedef enum {
     ACT_LOAD = 0,
@@ -56,7 +57,7 @@ typedef struct {
     esp_gmf_task_handle_t         task;
     esp_gmf_db_handle_t           rb;
     esp_bt_audio_stream_handle_t  stream;
-    float                         weight[ASRC_WEIGHT_LEN];
+    float                         weight[CH_CVT_WEIGHT_LEN];
     bool                          ready;
     bool                          started;
     bool                          running;
@@ -138,29 +139,33 @@ static void worker_task(void *arg)
     }
 }
 
-static void configure_asrc(leg_t *leg, uint32_t rate, int slot)
+static void configure_leg_cvt(leg_t *leg, uint32_t rate, int slot)
 {
-    esp_gmf_element_handle_t asrc = NULL;
-    if (esp_gmf_pipeline_get_el_by_name(leg->pipe, "aud_asrc", &asrc) != ESP_GMF_ERR_OK || asrc == NULL) {
-        ESP_LOGE(TAG, "aud_asrc missing");
+    esp_gmf_element_handle_t ch_cvt = NULL;
+    esp_gmf_element_handle_t rate_cvt = NULL;
+    if (esp_gmf_pipeline_get_el_by_name(leg->pipe, "aud_ch_cvt", &ch_cvt) != ESP_GMF_ERR_OK || ch_cvt == NULL) {
+        ESP_LOGE(TAG, "aud_ch_cvt missing");
+        return;
+    }
+    if (esp_gmf_pipeline_get_el_by_name(leg->pipe, "aud_rate_cvt", &rate_cvt) != ESP_GMF_ERR_OK || rate_cvt == NULL) {
+        ESP_LOGE(TAG, "aud_rate_cvt missing");
         return;
     }
 #if A2DP_BIS_BRIDGE_STREAM_COUNT == 1
     (void)slot;
-    /* Mix stereo A2DP down to one LC3 channel. */
     leg->weight[0] = 0.5f;
     leg->weight[1] = 0.5f;
 #else
     memset(leg->weight, 0, sizeof(leg->weight));
     leg->weight[slot == 0 ? 0 : 1] = 1.0f;
 #endif
-    esp_gmf_asrc_set_dest_rate(asrc, rate);
-    esp_gmf_asrc_set_dest_ch(asrc, 1);
-    esp_asrc_cfg_t *cfg = (esp_asrc_cfg_t *)OBJ_GET_CFG(asrc);
-    if (cfg) {
-        cfg->weight = leg->weight;
-        cfg->weight_len = ASRC_WEIGHT_LEN;
+    esp_gmf_ch_cvt_set_dest_channel(ch_cvt, 1);
+    esp_ae_ch_cvt_cfg_t *ch_cfg = (esp_ae_ch_cvt_cfg_t *)OBJ_GET_CFG(ch_cvt);
+    if (ch_cfg) {
+        ch_cfg->weight = leg->weight;
+        ch_cfg->weight_len = CH_CVT_WEIGHT_LEN;
     }
+    esp_gmf_rate_cvt_set_dest_rate(rate_cvt, rate);
 }
 
 static void stop_all(void)
@@ -273,7 +278,7 @@ static void prepare_bis(esp_bt_audio_stream_handle_t stream)
     leg_t *leg = &s_br.legs[slot];
     leg->stream = stream;
     esp_gmf_io_bt_set_stream(ESP_GMF_PIPELINE_GET_OUT_INSTANCE(leg->pipe), stream);
-    configure_asrc(leg, info.sample_rate ? info.sample_rate : lc3_rate(), slot);
+    configure_leg_cvt(leg, info.sample_rate ? info.sample_rate : lc3_rate(), slot);
 
     esp_audio_enc_config_t enc_cfg = {
         .type = to_audio_type(info.codec_type),
@@ -291,7 +296,7 @@ static void prepare_bis(esp_bt_audio_stream_handle_t stream)
     /*
      * The leg head is connected to another pipeline, so it receives sound
      * information asynchronously. Report the known decoded A2DP PCM format
-     * now, allowing ASRC/encoder jobs to be registered before pipeline_run().
+     * now, allowing ch/rate cvt and encoder jobs to be registered before pipeline_run().
      */
     esp_gmf_pipeline_report_info(leg->pipe, ESP_GMF_INFO_SOUND,
                                  &s_br.a2dp_sound, sizeof(s_br.a2dp_sound));
@@ -322,7 +327,8 @@ esp_err_t a2dp_bis_bridge_init(esp_gmf_pool_handle_t pool,
 
     for (int i = 0; i < BIS_NUM; i++) {
         const char *leg_els[] = {
-            "aud_asrc",
+            "aud_ch_cvt",
+            "aud_rate_cvt",
             "aud_enc",
         };
         ESP_RETURN_ON_FALSE(esp_gmf_pool_new_pipeline(pool, NULL, leg_els,
@@ -346,7 +352,7 @@ esp_err_t a2dp_bis_bridge_init(esp_gmf_pool_handle_t pool,
                                      NULL, s_br.legs[i].rb, PORT_PAYLOAD, 1);
         ESP_RETURN_ON_FALSE(out_port && in_port, ESP_ERR_NO_MEM, TAG, "port alloc failed");
         ESP_RETURN_ON_FALSE(esp_gmf_pipeline_connect_pipe(s_br.head_pipe, "copier", out_port,
-                                                          s_br.legs[i].pipe, "aud_asrc", in_port) == ESP_GMF_ERR_OK,
+                                                          s_br.legs[i].pipe, "aud_ch_cvt", in_port) == ESP_GMF_ERR_OK,
                             ESP_FAIL, TAG, "connect leg %d failed", i);
     }
 

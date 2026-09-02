@@ -16,3 +16,19 @@ dependencies:
     override_path: "../../../esp-gmf/packages/esp_bt_audio"
   espressif/esp_audio_codec:
     version: "^2.5"
+
+overrides:
+  - espressif/gmf_core:
+      with:
+        gmf_core:
+          git: ssh://git@gitlab.espressif.cn:27227/adf/multimedia/esp-gmf.git
+          path: gmf_core
+          version: aeb918bdf6176091f821ec3ac4e638311c419314
+      reason: Keep GMF capability definitions aligned with the audio-effects 1.4 revision
+  - espressif/gmf_audio:
+      with:
+        gmf_audio:
+          git: ssh://git@gitlab.espressif.cn:27227/adf/multimedia/esp-gmf.git
+          path: elements/gmf_audio
+          version: aeb918bdf6176091f821ec3ac4e638311c419314
+      reason: Use the upstream audio-effects 1.4 compatible revision until it is published

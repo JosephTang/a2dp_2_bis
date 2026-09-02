@@ -13,9 +13,10 @@
 #include "esp_audio_simple_dec_default.h"
 #include "esp_gmf_audio_dec.h"
 #include "esp_gmf_audio_enc.h"
-#include "esp_gmf_asrc.h"
+#include "esp_gmf_ch_cvt.h"
 #include "esp_gmf_copier.h"
 #include "esp_gmf_io_bt.h"
+#include "esp_gmf_rate_cvt.h"
 
 #include "pool_reg.h"
 
@@ -48,11 +49,17 @@ esp_gmf_err_t pool_reg(esp_gmf_pool_handle_t pool)
     ret = esp_gmf_pool_register_element(pool, element, NULL);
     ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to register audio encoder");
 
-    esp_asrc_cfg_t asrc_cfg = DEFAULT_ESP_GMF_ASRC_CONFIG();
-    ret = esp_gmf_asrc_init(&asrc_cfg, &element);
-    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to init ASRC");
+    esp_ae_ch_cvt_cfg_t ch_cfg = DEFAULT_ESP_GMF_CH_CVT_CONFIG();
+    ret = esp_gmf_ch_cvt_init(&ch_cfg, &element);
+    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to init channel converter");
     ret = esp_gmf_pool_register_element(pool, element, NULL);
-    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to register ASRC");
+    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to register channel converter");
+
+    esp_ae_rate_cvt_cfg_t rate_cfg = DEFAULT_ESP_GMF_RATE_CVT_CONFIG();
+    ret = esp_gmf_rate_cvt_init(&rate_cfg, &element);
+    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to init rate converter");
+    ret = esp_gmf_pool_register_element(pool, element, NULL);
+    ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to register rate converter");
 
     esp_gmf_copier_cfg_t copier_cfg = {
         .copy_num = 2,
