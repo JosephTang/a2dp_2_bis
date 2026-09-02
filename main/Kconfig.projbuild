@@ -1,0 +1,29 @@
+menu "A2DP to Dual BIS Example"
+
+    config A2DP_BIS_DEVICE_NAME
+        string "Bluetooth device / broadcast name"
+        default "A2DP-2-BIS"
+
+    config A2DP_BIS_BROADCAST_CODE
+        string "Broadcast code (empty for open broadcast)"
+        default ""
+
+    choice A2DP_BIS_LC3_PRESET
+        prompt "LC3 broadcast preset"
+        default A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ
+        help
+            Match the IDF a2dp_sink_broadcast_source sample with 16_2_1
+            (16 kHz, 10 ms, 40-byte, high quality) stereo by default.
+            Mono uses the same LC3 preset in one BIG with a single BIS.
+
+        config A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ
+            bool "16 kHz / 10 ms / 40 B / HQ, stereo (1 BIG / 2 BIS)"
+        config A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ_MONO
+            bool "16 kHz / 10 ms / 40 B / HQ, mono (1 BIG / 1 BIS)"
+        config A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ
+            bool "48 kHz / 10 ms / 100 B / HQ, stereo (1 BIG / 2 BIS)"
+        config A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ_MONO
+            bool "48 kHz / 10 ms / 100 B / HQ, mono (1 BIG / 1 BIS)"
+    endchoice
+
+endmenu
