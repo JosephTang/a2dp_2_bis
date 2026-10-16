@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "esp_bt.h"
-#include "esp_check.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 
@@ -22,9 +21,12 @@
 
 #include "a2dp_bis_bridge.h"
 #include "cmd_reg.h"
-#include "esp_gmf_io_bt.h"
 #include "pool_reg.h"
 #include "sdkconfig.h"
+
+#define LE_SRC_SEND_TASK_CORE_ID       0
+#define LE_SRC_SEND_TASK_PRIO          16
+#define LE_SRC_SEND_TASK_STACK_SIZE    4096
 
 static const char *TAG = "A2DP_2_BIS";
 
@@ -72,6 +74,9 @@ static void fill_bt_config(esp_bt_audio_config_t *cfg)
     cfg->le.roles = ESP_BT_AUDIO_LE_ROLE_BROADCAST_SOURCE;
     cfg->le.snk_cnt = 0;
     cfg->le.src_cnt = 0;
+    cfg->le.src_send_task_core_id = LE_SRC_SEND_TASK_CORE_ID;
+    cfg->le.src_send_task_prio = LE_SRC_SEND_TASK_PRIO;
+    cfg->le.src_send_task_stack_size = LE_SRC_SEND_TASK_STACK_SIZE;
     cfg->le.pacs.sink_enabled = 0;
     cfg->le.pacs.source_enabled = 0;
     cfg->le.vcp_rend.volume = 50;
@@ -86,13 +91,9 @@ static void fill_bt_config(esp_bt_audio_config_t *cfg)
 #if CONFIG_A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ_MONO
     cfg->le.bsrc.stream_locations[0] = 0;
     cfg->le.bsrc.lc3_preset = ESP_BT_AUDIO_LE_BSRC_LC3_PRESET_16KHZ_10MS_40B_HQ;
-#elif CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ_MONO
+#elif CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_155B_HQ_MONO
     cfg->le.bsrc.stream_locations[0] = 0;
-    cfg->le.bsrc.lc3_preset = ESP_BT_AUDIO_LE_BSRC_LC3_PRESET_48KHZ_10MS_100B_HQ;
-#elif CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ
-    cfg->le.bsrc.stream_locations[0] = ESP_BT_AUDIO_AUDIO_LOC_FRONT_LEFT;
-    cfg->le.bsrc.stream_locations[1] = ESP_BT_AUDIO_AUDIO_LOC_FRONT_RIGHT;
-    cfg->le.bsrc.lc3_preset = ESP_BT_AUDIO_LE_BSRC_LC3_PRESET_48KHZ_10MS_100B_HQ;
+    cfg->le.bsrc.lc3_preset = ESP_BT_AUDIO_LE_BSRC_LC3_PRESET_48KHZ_10MS_155B_HQ;
 #else
     cfg->le.bsrc.stream_locations[0] = ESP_BT_AUDIO_AUDIO_LOC_FRONT_LEFT;
     cfg->le.bsrc.stream_locations[1] = ESP_BT_AUDIO_AUDIO_LOC_FRONT_RIGHT;
@@ -108,15 +109,10 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
 
-    esp_gmf_io_bt_tx_order_handle_t tx_order = NULL;
-#if A2DP_BIS_BRIDGE_STREAM_COUNT > 1
-    ESP_ERROR_CHECK(esp_gmf_io_bt_tx_order_create(A2DP_BIS_BRIDGE_STREAM_COUNT, &tx_order));
-#endif
-
     esp_gmf_pool_handle_t pool = NULL;
     ESP_ERROR_CHECK(esp_gmf_pool_init(&pool));
     ESP_ERROR_CHECK(pool_reg(pool));
-    ESP_ERROR_CHECK(a2dp_bis_bridge_init(pool, tx_order));
+    ESP_ERROR_CHECK(a2dp_bis_bridge_init(pool));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));

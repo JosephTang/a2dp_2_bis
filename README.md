@@ -6,8 +6,8 @@
 
 ## Example Brief
 
-- Relays Classic A2DP Sink PCM from a phone into one LE Audio Broadcast Source BIG. Default is two BIS streams (front left / front right). menuconfig can select 16 kHz or 48 kHz mono with a single BIS.
-- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (PCM convert → `aud_enc` → `io_bt`). PCM conversion is selected in menuconfig: software `aud_ch_cvt` + `aud_rate_cvt`, or hardware `aud_asrc`. Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
+- Relays Classic A2DP Sink PCM from a phone into one LE Audio Broadcast Source BIG. Default is 48 kHz, 10 ms, 155-byte HQ, one BIS. menuconfig can select 16 kHz mono (one BIS) or 16 kHz stereo (one BIG, two BIS: front left / front right).
+- Uses `esp_bt_audio` plus GMF pipelines: `io_bt` (A2DP) → `aud_dec` → `copier` → one or two legs (PCM convert → `aud_enc` → `io_bt`). PCM conversion defaults to hardware `aud_asrc` when the chip supports it, and can be switched to software `aud_ch_cvt` + `aud_rate_cvt`. Dual-BIS writers submit packets in configured stream order; controller flow control remains in `esp_bt_audio`. No local I2S playback.
 
 ### Typical Scenarios
 
@@ -46,7 +46,7 @@ a2dp_2_bis/
 
 ### Default IDF Branch
 
-ESP32-S31 needs an IDF tree with preview target support (for example an internal/preview IDF that lists `esp32s31`). Use:
+ESP-IDF 6.2. `esp32s31` is a preview target:
 
 ```
 idf.py --preview set-target esp32s31
@@ -54,8 +54,8 @@ idf.py --preview set-target esp32s31
 
 ### Software Requirements
 
-- Local `esp-gmf` checkout providing `esp_bt_audio` (wired via `override_path` in `main/idf_component.yml`)
-- `esp_bt_audio` on a branch that includes BMS-only link guards (no PACS/unicast required for this example)
+- Component manager downloads the versions in `main/idf_component.yml` from the ESP Component Registry
+- `espressif/esp_bt_audio` 1.2 supports BMS-only (broadcast source without PACS or unicast)
 
 ## Build and Flash
 
@@ -75,11 +75,11 @@ idf.py -p PORT flash monitor
 
 menuconfig highlights:
 
-- `A2DP to Dual BIS Example` → device / broadcast name, broadcast code, PCM conversion path (software `aud_ch_cvt` + `aud_rate_cvt`, or hardware `aud_asrc`), LC3 preset (16/48 kHz stereo or mono)
+- `A2DP to Dual BIS Example` → device / broadcast name, broadcast code, PCM conversion path (default hardware `aud_asrc`, or software `aud_ch_cvt` + `aud_rate_cvt`), LC3 preset (48 kHz mono, or 16 kHz mono / stereo)
 - Bluetooth → LE Audio → `CONFIG_BT_BAP_BROADCAST_SRC_STREAM_COUNT=2` (stack maximum; actual BIS count follows the LC3 preset)
 - Keep Bluedroid BTDM enabled (Classic + LE)
 
-Default LC3 preset is `16 kHz / 10 ms / 40 B / HQ, stereo (1 BIG / 2 BIS)` to match the IDF `a2dp_sink_broadcast_source` sample. Mono presets mix A2DP stereo down to one BIS.
+Default LC3 preset is `48 kHz / 10 ms / 155 B / HQ, mono (1 BIG / 1 BIS)`. 16 kHz stereo uses one BIG and two BIS. Mono presets mix A2DP stereo down to one BIS.
 
 ## How to Use
 
@@ -101,13 +101,12 @@ Default LC3 preset is `16 kHz / 10 ms / 40 B / HQ, stereo (1 BIG / 2 BIS)` to ma
 Key lines to expect:
 
 ```
-I (x) A2DP_2_BIS: Ready: pair a phone as A2DP source; audio is relayed to dual BIS
+I (x) A2DP_2_BIS: Ready: pair a phone as A2DP source; audio is relayed to mono BIS
 I (x) A2DP_BIS_BRIDGE: A2DP prepared rate=44100
-I (x) A2DP_BIS_BRIDGE: BIS[0] prepared rate=16000
-I (x) A2DP_BIS_BRIDGE: BIS[1] prepared rate=16000
+I (x) A2DP_BIS_BRIDGE: BIS[0] prepared rate=48000
 ```
 
-Mono preset logs one `BIS[0]` line and `relayed to mono BIS`.
+Stereo presets log `relayed to dual BIS` and a second `BIS[1]` line.
 
 ## Troubleshooting
 

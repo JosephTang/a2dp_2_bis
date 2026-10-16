@@ -6,8 +6,8 @@
 
 ## 示例简介
 
-- 将手机 Classic A2DP Sink 音频桥接到一路 LE Audio Broadcast Source。默认 1 个 BIG、2 条 BIS（前左/前右）；menuconfig 可选 16 kHz 或 48 kHz 单声道（1 个 BIG、1 条 BIS）。
-- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（PCM 转换 → `aud_enc` → `io_bt`）。PCM 转换由 menuconfig 选择：软件 `aud_ch_cvt` + `aud_rate_cvt`，或硬件 `aud_asrc`。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
+- 将手机 Classic A2DP Sink 音频桥接到一路 LE Audio Broadcast Source。默认 48 kHz、10 ms、155 字节 HQ、1 个 BIG、1 条 BIS。menuconfig 可选 16 kHz 单声道（1 条 BIS）或 16 kHz 立体声（1 个 BIG、2 条 BIS，前左/前右）。
+- 基于 `esp_bt_audio` 与 GMF：`io_bt`(A2DP) → `aud_dec` → `copier` → 一路或两路（PCM 转换 → `aud_enc` → `io_bt`）。芯片支持时 PCM 转换默认使用硬件 `aud_asrc`，也可改为软件 `aud_ch_cvt` + `aud_rate_cvt`。双路 BIS 的 writer 按配置顺序提交 packet，controller 流控仍由 `esp_bt_audio` 处理。无本地 I2S 播放。
 
 ### 典型场景
 
@@ -46,7 +46,7 @@ a2dp_2_bis/
 
 ### 默认 IDF 分支
 
-ESP32-S31 需要带 preview target 的 IDF（例如已列出 `esp32s31` 的内部/预览树）。请使用：
+ESP-IDF 6.2。`esp32s31` 是 preview target：
 
 ```
 idf.py --preview set-target esp32s31
@@ -54,8 +54,8 @@ idf.py --preview set-target esp32s31
 
 ### 软件要求
 
-- 本地 `esp-gmf` 仓库中的 `esp_bt_audio`（通过 `main/idf_component.yml` 的 `override_path` 引用）
-- `esp_bt_audio` 需包含 BMS-only 链接保护（本示例不依赖 PACS/unicast）
+- 组件管理器按 `main/idf_component.yml` 从 ESP Component Registry 拉取依赖
+- `espressif/esp_bt_audio` 1.2 支持仅 BMS（广播源，不依赖 PACS 或 unicast）
 
 ## 编译与烧录
 
@@ -75,11 +75,11 @@ idf.py -p PORT flash monitor
 
 menuconfig 关注项：
 
-- `A2DP to Dual BIS Example`：设备/广播名、广播码、PCM 转换路径（软件 `aud_ch_cvt` + `aud_rate_cvt`，或硬件 `aud_asrc`）、LC3 preset（16/48 kHz 立体声或单声道）
+- `A2DP to Dual BIS Example`：设备/广播名、广播码、PCM 转换路径（默认硬件 `aud_asrc`，或软件 `aud_ch_cvt` + `aud_rate_cvt`）、LC3 preset（48 kHz 单声道，或 16 kHz 单声道/立体声）
 - Bluetooth → LE Audio：`CONFIG_BT_BAP_BROADCAST_SRC_STREAM_COUNT=2`（协议栈上限；实际 BIS 数量跟随 LC3 preset）
 - 保持 Bluedroid BTDM（Classic + LE）开启
 
-默认 LC3 preset 为 `16 kHz / 10 ms / 40 B / HQ, stereo (1 BIG / 2 BIS)`，与 IDF `a2dp_sink_broadcast_source` 示例一致。单声道 preset 将 A2DP 立体声混合为一条 BIS。
+默认 LC3 preset 为 `48 kHz / 10 ms / 155 B / HQ, mono (1 BIG / 1 BIS)`。16 kHz 立体声为 1 个 BIG、2 条 BIS。单声道 preset 将 A2DP 立体声混合为一条 BIS。
 
 ## 使用说明
 
@@ -101,13 +101,12 @@ menuconfig 关注项：
 关键日志示例：
 
 ```
-I (x) A2DP_2_BIS: Ready: pair a phone as A2DP source; audio is relayed to dual BIS
+I (x) A2DP_2_BIS: Ready: pair a phone as A2DP source; audio is relayed to mono BIS
 I (x) A2DP_BIS_BRIDGE: A2DP prepared rate=44100
-I (x) A2DP_BIS_BRIDGE: BIS[0] prepared rate=16000
-I (x) A2DP_BIS_BRIDGE: BIS[1] prepared rate=16000
+I (x) A2DP_BIS_BRIDGE: BIS[0] prepared rate=48000
 ```
 
-单声道 preset 只出现一条 `BIS[0]`，以及 `relayed to mono BIS`。
+立体声 preset 会打印 `relayed to dual BIS`，并多一条 `BIS[1]`。
 
 ## 故障排查
 

@@ -10,10 +10,12 @@ menu "A2DP to Dual BIS Example"
 
     choice A2DP_BIS_PCM_CVT
         prompt "PCM conversion path"
+        default A2DP_BIS_PCM_CVT_ASRC if SOC_ASRC_SUPPORTED
         default A2DP_BIS_PCM_CVT_SW
         help
             Convert decoded A2DP PCM to the LC3 channel count and sample rate.
-            Hardware ASRC is available on chips that expose SOC_ASRC.
+            Hardware ASRC is the default on chips that expose SOC_ASRC.
+            Otherwise the software channel and rate converters are used.
 
         config A2DP_BIS_PCM_CVT_SW
             bool "Software channel converter + rate converter"
@@ -24,20 +26,18 @@ menu "A2DP to Dual BIS Example"
 
     choice A2DP_BIS_LC3_PRESET
         prompt "LC3 broadcast preset"
-        default A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ
+        default A2DP_BIS_LC3_PRESET_48KHZ_10MS_155B_HQ_MONO
         help
-            Match the IDF a2dp_sink_broadcast_source sample with 16_2_1
-            (16 kHz, 10 ms, 40-byte, high quality) stereo by default.
-            Mono uses the same LC3 preset in one BIG with a single BIS.
+            Default is 48 kHz, 10 ms, 155-byte, high quality: one BIG and one BIS.
+            16 kHz stereo uses one BIG and two BIS (front left / front right).
+            Mono presets mix A2DP stereo down to one BIS.
 
         config A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ
             bool "16 kHz / 10 ms / 40 B / HQ, stereo (1 BIG / 2 BIS)"
         config A2DP_BIS_LC3_PRESET_16KHZ_10MS_40B_HQ_MONO
             bool "16 kHz / 10 ms / 40 B / HQ, mono (1 BIG / 1 BIS)"
-        config A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ
-            bool "48 kHz / 10 ms / 100 B / HQ, stereo (1 BIG / 2 BIS)"
-        config A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ_MONO
-            bool "48 kHz / 10 ms / 100 B / HQ, mono (1 BIG / 1 BIS)"
+        config A2DP_BIS_LC3_PRESET_48KHZ_10MS_155B_HQ_MONO
+            bool "48 kHz / 10 ms / 155 B / HQ, mono (1 BIG / 1 BIS)"
     endchoice
 
 endmenu

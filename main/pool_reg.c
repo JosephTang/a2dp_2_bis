@@ -24,6 +24,7 @@
 #include "esp_gmf_copier.h"
 #include "esp_gmf_io_bt.h"
 
+#include "a2dp_bis_bridge.h"
 #include "pool_reg.h"
 
 static const char *TAG = "POOL_REG";
@@ -76,7 +77,7 @@ esp_gmf_err_t pool_reg(esp_gmf_pool_handle_t pool)
 #endif
 
     esp_gmf_copier_cfg_t copier_cfg = {
-        .copy_num = 2,
+        .copy_num = A2DP_BIS_BRIDGE_STREAM_COUNT,
     };
     ret = esp_gmf_copier_init(&copier_cfg, &element);
     ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to init copier");
@@ -97,6 +98,10 @@ esp_gmf_err_t pool_reg(esp_gmf_pool_handle_t pool)
     ret = esp_gmf_pool_register_io(pool, io, NULL);
     ESP_GMF_RET_ON_ERROR(TAG, ret, return ret, "Failed to register BT writer");
 
+#if A2DP_BIS_BRIDGE_STREAM_COUNT > 1
     ESP_LOGI(TAG, "GMF pool registered for A2DP to dual BIS");
+#else
+    ESP_LOGI(TAG, "GMF pool registered for A2DP to mono BIS");
+#endif
     return ESP_GMF_ERR_OK;
 }

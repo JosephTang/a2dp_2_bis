@@ -72,7 +72,6 @@ typedef struct {
     esp_gmf_pipeline_handle_t     head_pipe;
     esp_gmf_task_handle_t         head_task;
     leg_t                         legs[BIS_NUM];
-    esp_gmf_io_bt_tx_order_handle_t tx_order;
     esp_bt_audio_stream_handle_t  a2dp_stream;
     QueueHandle_t                 queue;
     bool                          bsrc_started;
@@ -103,7 +102,7 @@ static esp_audio_type_t to_audio_type(esp_bt_audio_stream_codec_type_t codec)
 
 static uint32_t lc3_rate(void)
 {
-#if CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ || CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_100B_HQ_MONO
+#if CONFIG_A2DP_BIS_LC3_PRESET_48KHZ_10MS_155B_HQ_MONO
     return 48000;
 #else
     return 16000;
@@ -199,9 +198,6 @@ static void stop_all(void)
         esp_bt_audio_le_broadcast_source_stop();
         s_br.bsrc_started = false;
     }
-    if (s_br.tx_order) {
-        esp_gmf_io_bt_tx_order_stop(s_br.tx_order);
-    }
     if (s_br.head_running) {
         post_cmd(ACT_STOP, s_br.head_pipe);
     }
@@ -227,10 +223,6 @@ static void try_run(void)
 {
     if (!s_br.a2dp_started || s_br.bis_ready < BIS_NUM ||
         s_br.bis_started < BIS_NUM || s_br.head_running) {
-        return;
-    }
-    if (s_br.tx_order && esp_gmf_io_bt_tx_order_start(s_br.tx_order) != ESP_GMF_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to start BT TX ordering");
         return;
     }
     if (!s_br.head_loaded) {
@@ -330,17 +322,12 @@ static void prepare_bis(esp_bt_audio_stream_handle_t stream)
     ESP_LOGI(TAG, "BIS[%d] prepared rate=%lu", slot, (unsigned long)info.sample_rate);
 }
 
-esp_err_t a2dp_bis_bridge_init(esp_gmf_pool_handle_t pool,
-                               esp_gmf_io_bt_tx_order_handle_t tx_order)
+esp_err_t a2dp_bis_bridge_init(esp_gmf_pool_handle_t pool)
 {
     ESP_RETURN_ON_FALSE(pool != NULL, ESP_ERR_INVALID_ARG, TAG, "pool is NULL");
-#if A2DP_BIS_BRIDGE_STREAM_COUNT > 1
-    ESP_RETURN_ON_FALSE(tx_order != NULL, ESP_ERR_INVALID_ARG, TAG, "tx_order is NULL");
-#endif
     ESP_RETURN_ON_FALSE(!s_br.inited, ESP_ERR_INVALID_STATE, TAG, "already inited");
 
     memset(&s_br, 0, sizeof(s_br));
-    s_br.tx_order = tx_order;
     s_br.queue = xQueueCreate(WORKER_Q_LEN, sizeof(cmd_t));
     ESP_RETURN_ON_FALSE(s_br.queue != NULL, ESP_ERR_NO_MEM, TAG, "queue alloc failed");
 
@@ -369,12 +356,6 @@ esp_err_t a2dp_bis_bridge_init(esp_gmf_pool_handle_t pool,
                                                       sizeof(leg_els) / sizeof(leg_els[0]),
                                                       "io_bt", &s_br.legs[i].pipe) == ESP_GMF_ERR_OK,
                             ESP_FAIL, TAG, "leg pipeline %d failed", i);
-        if (tx_order) {
-            ESP_RETURN_ON_FALSE(
-                esp_gmf_io_bt_set_tx_order(ESP_GMF_PIPELINE_GET_OUT_INSTANCE(s_br.legs[i].pipe),
-                                           tx_order, i) == ESP_GMF_ERR_OK,
-                ESP_FAIL, TAG, "set TX order for leg %d failed", i);
-        }
         ESP_RETURN_ON_FALSE(esp_gmf_db_new_ringbuf(RB_BLOCKS, RB_BLOCK_SIZE, &s_br.legs[i].rb) == ESP_GMF_ERR_OK,
                             ESP_FAIL, TAG, "ringbuf %d failed", i);
 
